@@ -257,7 +257,11 @@ Então o resultado é passado para a frente para que seja apresentado no front-e
 Envia as informações para o front-end.
     Os parâmetros utilizados foram os seguintes:
 * Respond With: JSON
-* Authentication: {{ $json }}
+* Authentication: 
+```
+{{ $json }}
+```
+
 A última atividade do workflow, o nódulo envia todas as informações adquiridas e as envia para o front-end, já em um formato que é compatível com o front-end.
 
 
