@@ -264,8 +264,35 @@ Envia as informações para o front-end.
 
 A última atividade do workflow, o nódulo envia todas as informações adquiridas e as envia para o front-end, já em um formato que é compatível com o front-end.
 
+### Fluxograma do Workflow
 
-### Fluxograma
+ 
+### Instalando a Aplicação
+Para instalar a aplicação, abra o link: https://github.com/victtows/PSI-III
+Após isso, você irá fazer um git clone do projeto em alguma pasta na sua máquina.
+```
+docker compose pull 
+```
+
+### Utilizando a Aplicação
+Para iniciar a aplicação, abra o diretório onde o arquivo docker-compose se localiza e execute o seguinte comando: 
+```
+docker compose up -d
+```
+Após isso, o workflow estará disponível no localhost, na porta 5678. Para abrir a página web, basta apenas abrir o arquivo index.html.
+Ao rodar o projeto, você deve executar o workflow para a IA receber o input do site e após isso, você irá abrir a página web e colocará o domínio que deverá ser analisado pela inteligência artificial, e após isso, a aplicação irá gerar todo o conteúdo da análise dela, contendo as notas, certificado, análise completa, recomendações, etc.
+
+Além disso, existe a opção de gerar um relatório em pdf, contendo todas as informações listadas.
+
+### Tecnologias Utilizadas
+* Linguagens: Html, JavaScript e CSS
+* Github;
+* Docker;
+* Gemini;
+* API do SSL Labs;
+* N8n.
+
+### Fluxograma da Aplicação
 ```mermaid
 graph TD
     A[Usúario Insere um Domínio] -->| | B[Inicia o Workflow];
@@ -289,3 +316,8 @@ graph TD
     R -->| Não | T[Fim];
     S -->| | T;
 ```
+
+### Prompts de IA Utilizados
+* Desenvolva um prompt para que a IA analise automaticamente os dados coletados pelas APIs, gere um resumo executivo, um relatório técnico detalhado dividido por tópicos e recomendações de segurança. 
+* Aprimore continuamente o prompt da Inteligência Artificial para produzir análises técnicas mais completas, objetivas e estruturadas em formato JSON. 
+* Utilizamos o ChatGPT como ferramenta de apoio para compreender o funcionamento do n8n, a lógica dos fluxos de automação e aprender a configurar os nós.
