@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGuard IA Enterprise</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static/font/lucide.css">
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="container">
+
+    <header class="hero">
+      <div class="brand-logo">
+        <div class="logo-shield">WG</div>
+      </div>
+
+      <span class="badge">WebGuard IA Enterprise</span>
+
+      <h1>Auditoria Inteligente de Segurança Web</h1>
+
+      <p>
+        Analise SSL/TLS, Security Headers, risco, maturidade e recomendações técnicas
+        com apoio de Inteligência Artificial.
+      </p>
+
+      <div class="hero-tags">
+        <span>SSL Labs</span>
+        <span>Security Headers</span>
+        <span>IA</span>
+        <span>Relatório PDF</span>
+      </div>
+    </header>
+
+    <section class="card form-card">
+      <div class="form-title">
+        <i class="icon icon-search"></i>
+        <div>
+          <h2>Analisar servidor</h2>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="dominio">Domínio do servidor</label>
+        <input
+          type="text"
+          id="dominio"
+          placeholder="Ex: github.com"
+          value="google.com"
+        />
+      </div>
+
+      <button id="btnAnalisar">
+        Iniciar Auditoria
+      </button>
+
+      <p class="hint">
+        Informe apenas o domínio, sem colocar https://
+      </p>
+    </section>
+
+    <section id="loading" class="card loading hidden">
+      <div class="spinner"></div>
+      <h2>Analisando servidor...</h2>
+      <p>Coletando SSL/TLS, Security Headers, IA e calculando o score.</p>
+    </section>
+
+    <section id="resultado" class="results hidden">
+
+      <div class="result-header">
+        <div>
+          <h2>Dashboard Executivo</h2>
+          <p>Visão consolidada da auditoria de segurança web</p>
+        </div>
+
+        <span id="riscoBadge" class="risk-badge">Aguardando</span>
+      </div>
+
+      <div class="dashboard-grid top-grid">
+
+        <div class="dashboard-card score-main-card">
+          <div class="score-display">
+            <span class="card-label">Security Score</span>
+        
+            <span class="score-badge" id="summaryRisk">Risco</span>
+            <h1 id="scoreTexto" class="hidden-score">0/100</h1>
+        
+            <div class="score-chart">
+              <canvas id="scoreChart"></canvas>
+        
+              <div class="score-center">
+                <span id="scoreCenter">0</span>
+                <small>Security</small>
+                <strong id="scoreStatus">Score</strong>
+              </div>
+            </div>
+          </div>
+        
+          <div class="score-bar">
+            <div id="scoreFill"></div>
+          </div>
+        
+          <div class="score-meta">
+            <div>
+              <strong id="summarySSL">-</strong>
+              <span>Nota SSL</span>
+            </div>
+        
+            <div>
+              <strong id="summaryDate">-</strong>
+              <span>Data da análise</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-card maturity-card">
+          <h3><i class="icon icon-chart-column"></i> Índice de Maturidade</h3>
+        
+          <div class="maturity-item">
+            <span>SSL/TLS</span>
+            <strong id="sslValue">0%</strong>
+            <div class="progress"><div id="sslBar" class="progress-fill"></div></div>
+          </div>
+        
+          <div class="maturity-item">
+            <span>Security Headers</span>
+            <strong id="headersValue">0%</strong>
+            <div class="progress"><div id="headersBar" class="progress-fill"></div></div>
+          </div>
+        
+          <div class="maturity-item">
+            <span>Certificado</span>
+            <strong id="certValue">0%</strong>
+            <div class="progress"><div id="certBar" class="progress-fill"></div></div>
+          </div>
+        
+          <div class="maturity-item">
+            <span>Proteção Geral</span>
+            <strong id="geralValue">0%</strong>
+            <div class="progress"><div id="geralBar" class="progress-fill"></div></div>
+          </div>
+
+          <div class="maturity-chart">
+            <canvas id="maturityDonut"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="dashboard-grid middle-grid">
+
+        <div class="dashboard-card criteria-card">
+          <div class="criteria-header">
+            <h3>Como o Score foi calculado</h3>
+            <span id="criteriaTotal">0/100</span>
+          </div>
+
+          <div id="criteriaList" class="criteria-list"></div>
+        </div>
+
+        <div class="dashboard-card repair-card">
+          <div class="repair-header">
+            <h3><i class="icon icon-wrench"></i> Plano de Correção</h3>
+          </div>
+
+          <div id="repairList" class="repair-list"></div>
+        </div>
+
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <i class="icon icon-globe"></i>
+          <h3>Servidor</h3>
+          <p id="resultadoDominio">-</p>
+        </div>
+      
+        <div class="dashboard-card endpoints-card">
+          <h3>Servidores analisados</h3>
+          <p id="endpointsResumoTexto">-</p>
+        
+          <button id="btnEndpoints" class="secondary-button small-button">
+            Ver endpoints
+          </button>
+        </div>
+
+        <div class="info-card">
+          <i class="icon icon-shield-check"></i>
+          <h3>SSL/TLS</h3>
+          <p id="resultadoSSL">-</p>
+        </div>
+
+        <div class="info-card">
+          <i class="icon icon-badge-check"></i>
+          <h3>Certificado</h3>
+          <p id="resultadoCertificado">-</p>
+        </div>
+
+        <div class="info-card">
+          <i class="icon icon-settings"></i>
+          <h3>Configurações</h3>
+          <p id="resultadoHeaders">-</p>
+        </div>
+      </div>
+
+      <div id="endpointsBox" class="endpoints-box hidden">
+        <table class="endpoints-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>IP</th>
+              <th>Servidor</th>
+              <th>Status</th>
+              <th>Grade</th>
+            </tr>
+          </thead>
+          <tbody id="endpointsTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="dashboard-card technical-card">
+
+        <button class="accordion-btn" id="btnDetalhesTecnicos">
+            <span>Detalhes Técnicos</span>
+        </button>
+    
+        <div class="accordion-content" id="conteudoDetalhes">
+    
+            <div class="technical-grid">
+    
+                <div class="technical-item">
+                    <h4><i class="icon icon-badge-check"></i> Certificado</h4>
+                    <div id="certificadoTecnico"></div>
+                </div>
+    
+                <div class="technical-item">
+                    <h4><i class="icon icon-shield-lock"></i> Protocolos</h4>
+                    <div id="protocolosTecnicos"></div>
+                </div>
+    
+                <div class="technical-item">
+                    <h4><i class="icon icon-key-round"></i> Cipher Suites</h4>
+                    <div id="cipherTecnico"></div>
+                </div>
+    
+                <div class="technical-item">
+                    <h4><i class="icon icon-shield-check"></i> Recursos</h4>
+                    <div id="recursosTecnicos"></div>
+                </div>
+    
+                <div class="technical-item">
+                    <h4><i class="icon icon-git-branch"></i> Grupos Criptográficos</h4>
+                    <div id="gruposTecnicos"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+      <div class="dashboard-card ai-card">
+        <h3><i class="icon icon-bot"></i> Inteligência Artificial</h3>
+
+        <div class="ai-section">
+          <h4>Resumo Executivo</h4>
+          <p id="resultadoResumo">-</p>
+        </div>
+
+        <button id="btnAnaliseCompleta" class="secondary-button small-button">
+          Ver análise técnica completa
+        </button>
+
+        <div id="analiseCompletaBox" class="analysis-full hidden">
+          <div class="modal-content">
+            <button id="btnFecharAnalise" class="modal-close">✕</button>
+            <h4>Análise Técnica Completa</h4>
+            <p id="resultadoAnaliseCompleta">-</p>
+          </div>
+        </div>
+
+        <div class="ai-section">
+          <h4>Recomendações</h4>
+          <ul id="listaRecomendacoes"></ul>
+        </div>
+      </div>
+
+      <button id="btnRelatorio" class="secondary-button">
+        Exportar Relatório PDF
+      </button>
+
+    </section>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
