@@ -1,0 +1,470 @@
+// ===============================
+// WebGuard IA - Code JS Final
+// ===============================
+
+const ssl = $("SSL Labs").first().json;
+const headersNode = $("Security Headers").first().json;
+const sslDetails = $("SSL Labs Details").first().json || {};
+
+const saidaIA = $json.output || $json;
+
+const ia =
+  saidaIA?.resumo && saidaIA?.relatorioTecnico
+    ? saidaIA
+    : {
+        resumo: "A análise por IA não foi retornada.",
+        relatorioTecnico: {},
+        recomendacoes: [
+          "Revisar a configuração SSL/TLS.",
+          "Verificar os Security Headers.",
+          "Executar nova análise posteriormente."
+        ]
+      };
+
+const endpoints = ssl.endpoints || [];
+const headers = headersNode.headers || {};
+const details = sslDetails.details || {};
+
+function presente(valor) {
+  return valor && valor !== "Ausente" && valor !== "Não informado";
+}
+
+function valorNota(grade) {
+  const ordem = {
+    "A+": 13, "A": 12, "A-": 11,
+    "B+": 10, "B": 9, "B-": 8,
+    "C+": 7, "C": 6, "C-": 5,
+    "D+": 4, "D": 3, "D-": 2,
+    "E": 1, "F": 0, "T": 0, "M": 0,
+    "N/A": -1
+  };
+
+  return ordem[grade] ?? -1;
+}
+
+const piorEndpoint = endpoints.length
+  ? endpoints.reduce((pior, atual) =>
+      valorNota(atual.grade || "N/A") < valorNota(pior.grade || "N/A") ? atual : pior
+    )
+  : null;
+
+const nota = piorEndpoint?.grade || ssl.endpoints?.[0]?.grade || "N/A";
+
+const endpointsResumo = {
+  total: endpoints.length,
+  grades: endpoints.reduce((acc, ep) => {
+    const grade = ep.grade || "N/A";
+    acc[grade] = (acc[grade] || 0) + 1;
+    return acc;
+  }, {}),
+  lista: endpoints.map((ep, index) => ({
+    numero: index + 1,
+    ip: ep.ipAddress || "N/A",
+    servidor: ep.serverName || "Não informado",
+    status: ep.statusMessage || ep.status || "N/A",
+    grade: ep.grade || "N/A",
+    duracao: ep.duration ? `${Math.round(ep.duration / 1000)}s` : "N/A",
+    progresso: ep.progress ?? "N/A"
+  }))
+};
+
+// ===============================
+// Detalhes técnicos SSL Labs
+// ===============================
+
+const certChains = details.certChains || [];
+
+const protocolosResumo = (details.protocols || []).map(p => ({
+  nome: p.name || "Protocolo",
+  versao: p.version || "",
+  status: "Suportado"
+}));
+
+const suites = details.suites || [];
+
+const totalSuites = suites.reduce((total, item) => {
+  return total + (item.list?.length || 0);
+}, 0);
+
+const suitesFracas = suites.reduce((total, item) => {
+  return total + (item.list?.filter(s => s.q).length || 0);
+}, 0);
+
+const sims = details.sims?.results || [];
+
+const simComCertificado = sims.find(sim =>
+  sim.errorCode === 0 &&
+  sim.keyAlg &&
+  sim.keySize &&
+  sim.sigAlg
+) || {};
+
+const gruposNomeados = details.namedGroups?.list || [];
+
+const sslLabsTecnico = {
+  certificado: {
+    cadeias: certChains.length,
+    confiavel: certChains.some(chain =>
+      chain.trustPaths?.some(path =>
+        path.trust?.some(t => t.isTrusted === true)
+      )
+    ) ? "Sim" : "Verificar",
+    problemas: certChains.some(chain => chain.issues > 0) ? "Sim" : "Não",
+    algoritmoChave: simComCertificado.keyAlg || "Não informado",
+    tamanhoChave: simComCertificado.keySize
+      ? `${simComCertificado.keySize} bits`
+      : "Não informado",
+    assinatura: simComCertificado.sigAlg || "Não informado"
+  },
+
+  protocolos: protocolosResumo,
+
+  cipherSuites: {
+    total: totalSuites,
+    legadas: suitesFracas,
+    suportaAead: details.supportsAead ? "Sim" : "Não",
+    preferenciaChaCha20: details.chaCha20Preference ? "Sim" : "Não"
+  },
+
+  gruposCriptograficos: gruposNomeados.map(g => ({
+    nome: g.name || "-",
+    bits: g.bits || "-",
+    tipo: g.namedGroupType || "-"
+  })),
+
+  recursos: {
+    alpn: details.supportsAlpn
+      ? details.alpnProtocols || "Suportado"
+      : "Não suportado",
+    ocspStapling: details.ocspStapling ? "Ativo" : "Não ativo",
+    forwardSecrecy: details.forwardSecrecy ? "Ativo" : "Não informado",
+    compressaoTLS: details.compressionMethods === 0 ? "Desativada" : "Verificar",
+    rc4: details.supportsRc4 === false ? "Não utilizado" : "Verificar",
+    httpStatus: details.httpStatusCode || "Não informado"
+  }
+};
+
+const vulnerabilidadesResumo = {
+  heartbleed: details.heartbleed === false ? "Não vulnerável" : "Verificar",
+  beast: details.vulnBeast === false ? "Mitigado / Não vulnerável" : "Verificar",
+  robot: details.robot === 0 || details.robot === false ? "Não vulnerável" : "Verificar",
+  rc4: details.supportsRc4 === false ? "Não utilizado" : "Verificar",
+  compressaoTLS: details.compressionMethods === 0 ? "Desativada" : "Verificar",
+  forwardSecrecy: details.forwardSecrecy ? "Ativo" : "Não informado",
+  alpn: details.supportsAlpn ? details.alpnProtocols || "Suportado" : "Não suportado",
+  ocspStapling: details.ocspStapling ? "Ativo" : "Não ativo",
+  cipherSuites: `${totalSuites} suites detectadas (${suitesFracas} marcadas como fracas/legadas)`
+};
+
+// ===============================
+// Critérios e Score
+// ===============================
+
+const criterios = [];
+
+let pontosSSL = 0;
+
+if (nota === "A+") pontosSSL = 40;
+else if (nota === "A") pontosSSL = 35;
+else if (nota === "A-") pontosSSL = 32;
+else if (nota === "B+") pontosSSL = 30;
+else if (nota === "B") pontosSSL = 30;
+else if (nota === "B-") pontosSSL = 22;
+else if (nota === "C+") pontosSSL = 18;
+else if (nota === "C") pontosSSL = 15;
+else if (nota === "C-") pontosSSL = 12;
+else if (nota === "D+") pontosSSL = 8;
+else if (nota === "D") pontosSSL = 5;
+else if (nota === "D-") pontosSSL = 3;
+
+criterios.push({
+  nome: `SSL Labs (${nota})`,
+  status: pontosSSL > 0,
+  pontos: pontosSSL,
+  maximo: 40,
+  impacto: "Alto"
+});
+
+criterios.push({
+  nome: "HTTPS / Porta 443",
+  status: ssl.port === 443,
+  pontos: ssl.port === 443 ? 5 : 0,
+  maximo: 5,
+  impacto: "Alto"
+});
+
+criterios.push({
+  nome: "Certificado Digital",
+  status: true,
+  pontos: 15,
+  maximo: 15,
+  impacto: "Alto"
+});
+
+criterios.push({
+  nome: "HSTS",
+  status: presente(headers.hsts),
+  pontos: presente(headers.hsts) ? 10 : 0,
+  maximo: 10,
+  impacto: "Alto"
+});
+
+criterios.push({
+  nome: "Content-Security-Policy",
+  status: presente(headers.csp),
+  pontos: presente(headers.csp) ? 15 : 0,
+  maximo: 15,
+  impacto: "Crítico"
+});
+
+criterios.push({
+  nome: "X-Frame-Options",
+  status: presente(headers.xFrameOptions),
+  pontos: presente(headers.xFrameOptions) ? 5 : 0,
+  maximo: 5,
+  impacto: "Médio"
+});
+
+criterios.push({
+  nome: "X-Content-Type-Options",
+  status: presente(headers.xContentTypeOptions),
+  pontos: presente(headers.xContentTypeOptions) ? 5 : 0,
+  maximo: 5,
+  impacto: "Médio"
+});
+
+criterios.push({
+  nome: "Referrer-Policy",
+  status: presente(headers.referrerPolicy),
+  pontos: presente(headers.referrerPolicy) ? 5 : 0,
+  maximo: 5,
+  impacto: "Baixo"
+});
+
+const score = criterios.reduce((total, item) => total + item.pontos, 0);
+
+let risco = "Baixo";
+
+if (score >= 85) risco = "Baixo";
+else if (score >= 65) risco = "Médio";
+else if (score >= 40) risco = "Alto";
+else risco = "Crítico";
+
+const planoCorrecao = criterios
+  .filter(item => !item.status)
+  .map(item => ({
+    prioridade:
+      item.impacto === "Crítico" ? "Alta" :
+      item.impacto === "Alto" ? "Alta" :
+      item.impacto === "Médio" ? "Média" : "Baixa",
+    problema: item.nome,
+    impacto: item.impacto,
+    ganhoEsperado: `+${item.maximo} pontos`
+  }));
+
+const maturidade = {
+  sslTls: Math.min(100, Math.round((pontosSSL / 40) * 100)),
+  certificado: 100,
+  headers: Math.round(
+    (
+      (presente(headers.hsts) ? 10 : 0) +
+      (presente(headers.csp) ? 15 : 0) +
+      (presente(headers.xFrameOptions) ? 5 : 0) +
+      (presente(headers.xContentTypeOptions) ? 5 : 0) +
+      (presente(headers.referrerPolicy) ? 5 : 0)
+    ) / 40 * 100
+  ),
+  protecaoGeral: score
+};
+
+// ===============================
+// Headers explicados
+// ===============================
+
+const headersExplicados = [
+  {
+    nome: "Strict-Transport-Security (HSTS)",
+    status: presente(headers.hsts) ? "Presente" : "Ausente",
+    valor: headers.hsts || "Não informado",
+    explicacao: "Força o navegador a acessar o site somente por HTTPS.",
+    impacto: "Protege contra downgrade HTTPS e SSL Stripping.",
+    recomendacao: presente(headers.hsts)
+      ? "Manter a configuração atual."
+      : "Implementar HSTS com max-age adequado."
+  },
+  {
+    nome: "Content-Security-Policy (CSP)",
+    status: presente(headers.csp) ? "Presente" : "Ausente",
+    valor: headers.csp || "Não informado",
+    explicacao: "Define quais fontes de scripts, estilos, imagens e outros recursos podem ser carregadas.",
+    impacto: "Ajuda a mitigar ataques XSS e injeção de conteúdo.",
+    recomendacao: presente(headers.csp)
+      ? "Manter e revisar periodicamente a política CSP."
+      : "Implementar uma política Content-Security-Policy."
+  },
+  {
+    nome: "X-Frame-Options",
+    status: presente(headers.xFrameOptions) ? "Presente" : "Ausente",
+    valor: headers.xFrameOptions || "Não informado",
+    explicacao: "Controla se a página pode ser carregada dentro de frames ou iframes.",
+    impacto: "Protege contra ataques de Clickjacking.",
+    recomendacao: presente(headers.xFrameOptions)
+      ? "Manter a configuração atual."
+      : "Adicionar X-Frame-Options com DENY ou SAMEORIGIN."
+  },
+  {
+    nome: "X-Content-Type-Options",
+    status: presente(headers.xContentTypeOptions) ? "Presente" : "Ausente",
+    valor: headers.xContentTypeOptions || "Não informado",
+    explicacao: "Impede que o navegador tente adivinhar o tipo MIME dos arquivos.",
+    impacto: "Reduz riscos de execução indevida de arquivos como scripts.",
+    recomendacao: presente(headers.xContentTypeOptions)
+      ? "Manter a configuração atual."
+      : "Adicionar X-Content-Type-Options: nosniff."
+  },
+  {
+    nome: "Referrer-Policy",
+    status: presente(headers.referrerPolicy) ? "Presente" : "Ausente",
+    valor: headers.referrerPolicy || "Não informado",
+    explicacao: "Controla quais informações de origem são enviadas em requisições.",
+    impacto: "Melhora a privacidade e reduz exposição de URLs sensíveis.",
+    recomendacao: presente(headers.referrerPolicy)
+      ? "Manter a configuração atual."
+      : "Adicionar uma política Referrer-Policy adequada."
+  },
+  {
+    nome: "Permissions-Policy",
+    status: presente(headers.permissionsPolicy) ? "Presente" : "Ausente",
+    valor: headers.permissionsPolicy || "Não informado",
+    explicacao: "Controla o acesso a recursos do navegador, como câmera, microfone e geolocalização.",
+    impacto: "Reduz abuso de APIs sensíveis do navegador.",
+    recomendacao: presente(headers.permissionsPolicy)
+      ? "Manter e revisar a política."
+      : "Implementar Permissions-Policy."
+  }
+];
+
+// ===============================
+// Achados e boas práticas
+// ===============================
+
+const achadosIdentificados = [];
+
+criterios.forEach(item => {
+  if (!item.status) {
+    achadosIdentificados.push({
+      risco: item.impacto,
+      achado: item.nome,
+      recomendacao: `Corrigir ${item.nome} para melhorar a postura de segurança.`
+    });
+  }
+});
+
+if (sslLabsTecnico.recursos?.ocspStapling === "Não ativo") {
+  achadosIdentificados.push({
+    risco: "Baixo",
+    achado: "OCSP Stapling não habilitado",
+    recomendacao: "Habilitar OCSP Stapling para melhorar a validação de revogação do certificado."
+  });
+}
+
+if (headers.xXssProtection === "0") {
+  achadosIdentificados.push({
+    risco: "Baixo",
+    achado: "X-XSS-Protection desabilitado",
+    recomendacao: "Remover o cabeçalho X-XSS-Protection ou confiar na política CSP."
+  });
+}
+
+const boasPraticas = [];
+
+if (nota === "A+" || nota === "A") boasPraticas.push("Boa classificação SSL/TLS no SSL Labs.");
+if (presente(headers.hsts)) boasPraticas.push("HSTS configurado.");
+if (presente(headers.csp)) boasPraticas.push("Content-Security-Policy configurado.");
+if (presente(headers.xFrameOptions)) boasPraticas.push("Proteção contra Clickjacking configurada.");
+if (presente(headers.xContentTypeOptions)) boasPraticas.push("Proteção contra MIME sniffing configurada.");
+if (presente(headers.referrerPolicy)) boasPraticas.push("Referrer-Policy configurado.");
+if (sslLabsTecnico.recursos?.rc4 === "Não utilizado") boasPraticas.push("RC4 desabilitado.");
+if (sslLabsTecnico.recursos?.compressaoTLS === "Desativada") boasPraticas.push("Compressão TLS desativada.");
+if (sslLabsTecnico.recursos?.forwardSecrecy === "Ativo") boasPraticas.push("Forward Secrecy ativo.");
+if ((sslLabsTecnico.protocolos || []).some(p => p.nome === "TLS" && p.versao === "1.3")) boasPraticas.push("TLS 1.3 suportado.");
+
+// ===============================
+// Análise completa IA
+// ===============================
+
+const rel = ia.relatorioTecnico || {};
+
+const analiseCompleta = `
+1. Coleta de Informações
+${rel.coleta || "Informação não retornada pela IA."}
+
+2. Análise SSL/TLS
+${rel.sslTls || "Informação não retornada pela IA."}
+
+3. Certificado Digital
+${rel.certificado || "Informação não retornada pela IA."}
+
+4. Protocolos
+${rel.protocolos || "Informação não retornada pela IA."}
+
+5. Cipher Suites e Forward Secrecy
+${rel.cipherSuites || "Informação não retornada pela IA."}
+
+6. Vulnerabilidades Conhecidas
+${rel.vulnerabilidades || "Informação não retornada pela IA."}
+
+7. Security Headers
+${rel.securityHeaders || "Informação não retornada pela IA."}
+
+8. Impactos
+${rel.impactos || "Informação não retornada pela IA."}
+
+9. Conclusão Técnica
+${rel.conclusao || "Informação não retornada pela IA."}
+`.trim();
+
+// ===============================
+// Retorno final
+// ===============================
+
+return [
+  {
+    json: {
+      status: "success",
+      host: ssl.host,
+      ssl_status: ssl.status,
+      nota_ssl: nota,
+      certificado: "Válido",
+      headersResumo:
+        "HSTS, CSP, X-Frame-Options, X-Content-Type-Options e Referrer-Policy avaliados",
+      headersDetalhados: headers,
+      endpointsResumo,
+      detalhesTecnicos: {
+        detalhesProtocolo: details,
+        simulacaoHandshake: details.sims || null,
+        servidor: sslDetails.serverName || sslDetails.serverSignature || null
+      },
+      sslLabsTecnico,
+      protocolosResumo,
+      vulnerabilidadesResumo,
+      headersExplicados,
+      achadosIdentificados,
+      boasPraticas,
+      score,
+      risco,
+      criterios,
+      planoCorrecao,
+      maturidade,
+      dataAnalise: new Date().toLocaleString("pt-BR"),
+      mensagem: ia.resumo || "Análise realizada com sucesso pelo WebGuard IA.",
+      relatorioTecnico: ia.relatorioTecnico || {},
+      analiseCompleta,
+      recomendacoes: ia.recomendacoes || [
+  "Revisar a configuração SSL/TLS.",
+  "Verificar os Security Headers.",
+  "Executar nova análise posteriormente."
+]
+    }
+  }
+];
