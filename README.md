@@ -1,6 +1,6 @@
 ## Fluxograma
 ```mermaid
-graph LR
+graph TD
     A[Usúario Insere um Domínio] -->| | B[Inicia o Workflow];
     B --> C[Recebe o Domínio Inserido];
     C -->| | D[Importa a API do SSL Labs];
