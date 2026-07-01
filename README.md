@@ -268,7 +268,7 @@ A última atividade do workflow, o nódulo envia todas as informações adquirid
 ![Fluxograma do Workflow](https://github.com/victtows/PSI-III/blob/35ed9c11eec3a769b4a16155fc46878dc1f818b8/docs/img/fluxograma.png)
  
 ### Instalando a Aplicação
-Para instalar a aplicação, abra o link: https://github.com/victtows/PSI-III
+Para instalar a aplicação, abra o link: [https://github.com/victtows/PSI-III](https://github.com/victtows/PSI-III/tree/WebGuardIA)
 Após isso, você irá fazer um git clone do projeto em alguma pasta na sua máquina.
 ```
 docker compose pull 
